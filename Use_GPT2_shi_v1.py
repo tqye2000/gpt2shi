@@ -6,13 +6,10 @@
 # When       | Who         | What                                              #
 # 20/01/2023 |Tian-Qing Ye | Creation                                          #
 ################################################################################
-#import tensorflow as tf
-#from transformers import T5Tokenizer, TFT5ForConditionalGeneration #,TFGPT2LMHeadModel
 from transformers import BertTokenizer, TFGPT2LMHeadModel, TextGenerationPipeline
-#from transformers import pipeline
-import numpy as np
 import logging
 import sys
+import os
 import re
 
 ###################################################
@@ -34,12 +31,11 @@ model = TFGPT2LMHeadModel.from_pretrained(model_name)
 #tokenizer = BertTokenizer.from_pretrained(model_name, local_files_only=True)
 #model = TFGPT2LMHeadModel.from_pretrained(model_name, use_cache=True, local_files_only=True)
 
-def display_probs(outputs):
-    outputs_list = list(map(float, outputs[0]))
-    probs = [np.exp(o) for o in outputs_list]
-    word_probs = [p/sum(probs) for p in probs]
-    for i, word in enumerate(word_probs):
-       print("Index of word %i is %f " % (i, word))
+OUTPUT_FOLDER = "outputs"
+if not os.path.exists(OUTPUT_FOLDER):
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+OUTPUT_FILE = os.path.join(OUTPUT_FOLDER, "generated_poems.txt")
    
 def postprocess(text):
     #first split into sentences
@@ -90,8 +86,8 @@ def main(argv):
         else:
             if user_input.strip().lower() == "batch":
                 prompts = [
-                    "夜半西风",
-                    "荷塘花",
+                    "细雨绵绵",
+                    "荷塘花下",
                 ]
             else:
                 if user_input.strip().lower() == "ok" or len(user_input.strip()) < 1:
@@ -112,6 +108,7 @@ def main(argv):
         topk = 30
         nbeams = 4
         nreturns = 1
+        f = open(OUTPUT_FILE, "a", encoding='utf-8',)
         for prompt in prompts:
             prompt = f"[CLS]{prompt}"
             text_generator = TextGenerationPipeline(model, tokenizer)   
@@ -123,17 +120,18 @@ def main(argv):
                                      top_k=topk,
                                      num_return_sequences=nreturns,
                                      early_stopping=False)
-            f = open(model_name+".txt", "a", encoding='utf-8',)
             for i in range(nreturns):
                 text = outputs[i]['generated_text']
                 print(f'Generated{i+1}: {text}')
                 text = text.replace(" ", "").strip()
-                f.write(f'Generated{i+1}: {text}\n\n')
+                f.write(f'\nGenerated{i+1}: {text}\n\n')
                 poems = postprocess(text)
+                f.write(f'Processed{i+1}: {poems}')
                 print (poems)
-            f.close()
-            
+
             print(100 * '-' + '\n')
+        
+        f.close()
 
 
 ##############################
